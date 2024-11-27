@@ -1,64 +1,87 @@
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 #include "svmalloc.h"
+#include <unistd.h>
 
-void* mem_init() {
-    return mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-}
 
-typedef struct block {
-    size_t size;
-    int free; // 1 if free, 0 if not
+struct block {
+    void* location;
     struct block* next;
-} block_t;
+    int free; //1 is free, 0 is not
+    size_t size;
+};
+
+#define BLOCK_SIZE sizeof(struct block)
 
 
+void* global_head = NULL;
 
-block_t* global_head = NULL;
 
+ 
 
-void insert_block(block_t* head, block_t* new_block, int index) {
-    block_t* current = head;
-    for(int i=0; i<index-1; i++) {
+struct block* find_free(struct block** last, int size) {
+    struct block *current = global_head;
+    while (current && !(current->free && current->size >= size)) {
+        *last = current;
         current = current->next;
     }
-    new_block->next = current->next;
-    current->next = new_block;
+    return current;
 }
 
-block_t* find_free(block_t** last, int size){
-    block_t* current = global_head;
-    while (current && !(current->free==1 && current->size >= size)) {
-    *last = current;
-    current = current->next;
-  }
-  return current;
+struct block* mem_init(struct block* last, size_t size) {
+    struct block* new;
+    //void* new_addr = mmap(NULL, size+BLOCK_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void* new_addr = sbrk(0);
+    void *request = sbrk(size + BLOCK_SIZE);
+    (void)request;
+    new=new_addr;
+    if(last) {
+       last->next = new; 
+    }
+    new->size = size;
+    new->free=0;
+    new->next=NULL;
+    return new;
 }
+
 
 void* svmalloc(size_t size) {
-    block_t* new_block;
-    if(global_head == NULL) {
-        new_block = mem_init();
-        new_block->size = 4096 - sizeof(block_t);
-        new_block->free = 0;
-        new_block->next = NULL;
-        global_head = new_block;
+    struct block* block;
+    if(!global_head) {
+        block = mem_init(NULL, size);
+        global_head=block;
     } else {
-        block_t* last = global_head;
-        new_block = find_free(&last, size);
-        if(new_block == NULL) {
-            new_block = mem_init();
-            new_block->size = 4096 - sizeof(block_t);
-            new_block->free = 0;
-            new_block->next = NULL;
-            insert_block(global_head, new_block, 1);
-        }
-        new_block->free = 0;
+        struct block* last = global_head;
+        block = find_free(&last, size);
+        if(!block) {
+            block = mem_init(last, size);
 
+        } else {
+            block->next = NULL;
+            block->free = 0;
+        }
     }
-    return (void*)(new_block + 1);
+    return (block+1);
 }
 
+void print_heap_layout() {
+    struct block* current = global_head;
+    while(current) {
+        printf("Block: %p, Size: %lu, Free: %d\n", current, current->size, current->free);
+        current = current->next;
+    }
+}
 
+struct block* get_ptr(void* ptr) {
+    return (struct block*)ptr-1;
+}
 
-
+void free(void* ptr) {
+    if(!ptr){
+        return;
+    }
+    struct block* blkptr=get_ptr(ptr);
+    blkptr->free=1;
+}

@@ -1,8 +1,13 @@
 #pragma once
 #include <stddef.h>
-void* mem_init();
+struct block* mem_init(struct block* last, size_t size);
 void* svmalloc(size_t size);
 
-typedef struct block block_t;
-block_t* find_free(block_t** last, int size);
-void insert_block(block_t* head, block_t* new_block, int index);
+
+struct block* find_free(struct block** last, int size);
+
+void print_heap_layout();
+
+struct block* get_ptr(void* ptr);
+
+void free(void* ptr);
