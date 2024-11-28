@@ -10,4 +10,5 @@ void print_heap_layout();
 
 struct block* get_ptr(void* ptr);
 
-void free(void* ptr);
+void svfree(struct block* ptr);
+

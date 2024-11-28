@@ -1,6 +1,7 @@
 #include "svmalloc.h"
 #include <stdio.h>
-
+#include <stdlib.h>
+#include <time.h>
 void copyChar(char *s, char c, int len)
 {
     for( int i=0; i<len; i++)
@@ -8,23 +9,34 @@ void copyChar(char *s, char c, int len)
 }
 
 int main() {
-    char* a = svmalloc(10); 
-    printf("a = %p \n", a);
-    char* b=svmalloc(20);
-    printf("b = %p \n", b);
-    char* c=svmalloc(30);
-    printf("c = %p \n", c);
-    char* d=svmalloc(40);
-    printf("d = %p \n", d);
+    srand(time(NULL));
+    struct block* blocks[41] = {NULL};
+    for(int i=0; i<40; i++) {
+        int size = rand() % (4096/2 + 1);
+        blocks[i] = svmalloc(size);
+        copyChar(blocks[i], 'A'+i, size);
+    }
+    //free 20 blocks randomly
+    for(int i=0; i<20; i++) {
+        int index = rand() % 40;
+        if(blocks[index]) {
+            svfree(blocks[index]);
+            blocks[index] = NULL;
+        }
+    }
+    //allocate 10 more blocks and put them in the null slots in the array
+    for(int i=0; i<10; i++) {
+        int size = rand() % (4096/2 + 1);
+        for(int j=0; j<40; j++) {
+            if(!blocks[j]) {
+                blocks[j] = svmalloc(size);
+                copyChar(blocks[j], 'A'+j, size);
+                break;
+            }
+        }
+    }
 
-    printf("b-a = %ld \n", (b-a));
-    printf("c-b = %ld \n", (c-b));
-    printf("d-c = %ld \n", (d-c));
-
-    copyChar(a, 'a', 10);
-    copyChar(b, 'b', 20);
-    copyChar(c, 'c', 30);
-    copyChar(d, 'd', 40);
+    
 
 
     print_heap_layout();

@@ -7,10 +7,10 @@
 
 
 struct block {
-    void* location;
-    struct block* next;
+    
     int free; //1 is free, 0 is not
-    size_t size;
+    int size;
+    struct block* next;
 };
 
 #define BLOCK_SIZE sizeof(struct block)
@@ -65,11 +65,11 @@ void* svmalloc(size_t size) {
     }
     return (block+1);
 }
-
+//print free and allocated blocks
 void print_heap_layout() {
     struct block* current = global_head;
     while(current) {
-        printf("Block: %p, Size: %lu, Free: %d\n", current, current->size, current->free);
+        printf("Block: %p, size: %d, free: %d\n", current, current->size, current->free);
         current = current->next;
     }
 }
@@ -78,7 +78,9 @@ struct block* get_ptr(void* ptr) {
     return (struct block*)ptr-1;
 }
 
-void free(void* ptr) {
+
+
+void svfree(struct block* ptr) {
     if(!ptr){
         return;
     }
